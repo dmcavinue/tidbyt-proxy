@@ -4,14 +4,27 @@ API proxy to sit between Home Assistant and Tidbyt API to allow for notification
 
 **Further Note:** I haven't bothered implementing auth to this as I prefer to manage that separately.
 
-#### Example Home Assistant `rest_command` Service definition:
+#### Example Home Assistant setup
 
+#####  `rest_command` definition:
 ```yaml
 rest_command:
   tidbyt-notify:
     url: http://tidbyt:8080/api/notify
     payload: '{"text": "{{ text }}", "textcolor": "{{ textcolor }}", "bgcolor": "{{ bgcolor }}", "icon": "{{ icon }}"}'
     method: POST
+```
+
+#####  `Service` usage:
+```yaml
+...
+- service: rest_command.tidbyt
+  data:
+    text: "Banana for scale!"
+    textcolor: "#ffffff"
+    bgcolor: "#00ff00"
+    icon: "Banana"    
+...
 ```
 
 #### Developing templates locally
