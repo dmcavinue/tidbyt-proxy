@@ -1,4 +1,4 @@
-module demo
+module tidbyt
 
 go 1.16
 
