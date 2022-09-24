@@ -2,5 +2,4 @@ README.md
 .env.example
 .env
 .github
-VERSION
 docker-compose.yml
