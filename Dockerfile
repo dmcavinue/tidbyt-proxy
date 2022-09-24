@@ -1,4 +1,4 @@
-FROM golang:1.17-alpine3.15
+FROM golang:1.17-alpine3.16
 WORKDIR /build
 COPY . .
 RUN GOOS=linux CGO_ENABLED=0 go build -a -ldflags '-s -w -extldflags "-static"' -o tidbyt .
