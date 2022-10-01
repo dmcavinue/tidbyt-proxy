@@ -227,7 +227,7 @@ func notifyHandler(w http.ResponseWriter, r *http.Request) {
 
 		m := MQTTOptions{
 			Applet: Applet{
-		    	Applet: fmt.Sprintf("notify-%d", timestamp),
+		    	Applet: "notify",
 		    	Payload: imgBase64,
 			},
 		}
