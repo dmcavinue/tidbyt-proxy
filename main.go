@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -14,6 +15,7 @@ import (
 	"github.com/gorilla/mux"
 	flags "github.com/jessevdk/go-flags"
 	log "github.com/sirupsen/logrus"
+	"github.com/eclipse/paho.mqtt.golang"
 )
 
 const (
@@ -22,9 +24,10 @@ const (
 )
 
 var config struct {
-	API    `group:"HTTP Server Options" namespace:"http" env-namespace:"HTTP"`
-	Tidbyt `group:"Tidbyt Options" namespace:"tidbyt" env-namespace:"TIDBYT"`
-	Debug  bool `long:"debug-mode" env:"DEBUG_MODE" description:"Debug Mode"`
+	API    API    `group:"HTTP Server Options" namespace:"http" env-namespace:"HTTP"`
+	MQTT   MQTT   `group:"MQTT Options" namespace:"mqtt" env-namespace:"MQTT"`
+	Tidbyt Tidbyt `group:"Tidbyt Options" namespace:"tidbyt" env-namespace:"TIDBYT"`
+	Debug  bool   `long:"debug-mode" env:"DEBUG_MODE" description:"Debug Mode"`
 }
 
 var availableTemplates *template.Template
@@ -41,13 +44,33 @@ type Tidbyt struct {
 	DeviceID string `long:"device-id" env:"DEVICE_ID" description:"Tidbyt Device ID"`
 }
 
+type MQTT struct {	
+	Host     string `long:"host" env:"HOST" description:"MQTT Host"`
+	Port     int    `long:"port" env:"PORT" description:"MQTT Port" default:"1883"`
+	Username string `long:"username" env:"USERNAME" description:"MQTT Username"`
+	Password string `long:"password" env:"PASSWORD" description:"MQTT Password"`
+	Topic    string `long:"topic" env:"TOPIC" description:"MQTT Topic" default:"plm"`
+}
+
+type MQTTOptions struct {
+	Brightness int
+	Status     string
+    Current    string
+	Applet     Applet
+}
+
+type Applet struct {
+	Applet  string `json:"applet"`
+	Payload string `json:"payload"`
+}
+
 type notify struct {
 	Text            string `json:"text"`        // Text to send in notification
 	TextColor       string `json:"textcolor"`   // Text Color to set. Default: White
 	BackgroundColor string `json:"bgcolor"`     // Background color to set: Default: Black
 	TextSize        int    `json:"textsize"`    // Test font size to set. Default: 14
 	Icon            string `json:"icon"`        // Icon to send in notification by name
-	ReturnImage     bool   `json:"returnimage"` // Return resulting image in response
+	ReturnImage     bool   `json:"returnimage"` // Return resulting image in response	
 }
 
 // templates : parameter definitions for all available star templates
@@ -91,8 +114,8 @@ func main() {
 	r.HandleFunc("/api/notify", notifyHandler)
 	r.HandleFunc("/healthcheck", healthcheck)
 
-	fmt.Println("Starting server on port", config.Port)
-	if err := http.ListenAndServe(fmt.Sprintf(":%d", config.Port), r); err != nil {
+	fmt.Println("Starting server on port", config.API.Port)
+	if err := http.ListenAndServe(fmt.Sprintf(":%d", config.API.Port), r); err != nil {
 		log.Fatal("Error while starting server:", err)
 	}
 }
@@ -120,6 +143,10 @@ func parameterDefaults(p interface{}) {
 	}
 }
 
+func toBase64(b []byte) string {
+	return base64.StdEncoding.EncodeToString(b)
+}
+
 // notifyHandler: send simple text notification to tidbyt device
 func notifyHandler(w http.ResponseWriter, r *http.Request) {
 	log.Tracef("notifyHandler:\nrequest:\n%+v", r)
@@ -140,7 +167,7 @@ func notifyHandler(w http.ResponseWriter, r *http.Request) {
 	parameterDefaults(templates.Notify)
 
 	// create temporary template file
-	templateFile, tmplErr := ioutil.TempFile(config.ScratchDirectory, "tidbyt*.star")
+	templateFile, tmplErr := ioutil.TempFile(config.API.ScratchDirectory, "tidbyt*.star")
 	if tmplErr != nil {
 		log.Fatal(tmplErr)
 		return
@@ -178,13 +205,52 @@ func notifyHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	// push rendered webp to target device if provided
-	if config.ApiKey != "" && config.DeviceID != "" {
-		pushOutput, err := exec.Command(pixletBinary, "push", "--api-token", config.ApiKey, config.DeviceID, outputFile).CombinedOutput()
+	if config.Tidbyt.ApiKey != "" && config.Tidbyt.DeviceID != "" {
+		pushOutput, err := exec.Command(pixletBinary, "push", "--api-token", config.Tidbyt.ApiKey, config.Tidbyt.DeviceID, outputFile).CombinedOutput()
 		log.Debugf("%s", string(pushOutput))
 		if err != nil {
 			log.Println(err.Error())
 			return
 		}
+		w.WriteHeader(http.StatusOK)
+	}
+	// send to target MQTT topic if provided 
+	if config.MQTT.Host != "" {
+		var imgBase64 string
+		// Read the entire file into a byte slice
+		imgBytes, err := ioutil.ReadFile(outputFile)
+		if err != nil {			
+			log.Println(err.Error())
+			return			
+		}
+		imgBase64 += toBase64(imgBytes)
+
+		m := MQTTOptions{
+			Applet: Applet{
+		    	Applet: fmt.Sprintf("notify-%d", timestamp),
+		    	Payload: imgBase64,
+			},
+		}
+		payload, err := json.Marshal(m.Applet)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		
+		opts := mqtt.NewClientOptions().AddBroker(fmt.Sprintf("tcp://%s:%d", config.MQTT.Host, config.MQTT.Port))
+		opts.SetClientID("tidbyt-proxy")
+		opts.SetUsername(config.MQTT.Username)
+		opts.SetPassword(config.MQTT.Password)
+		opts.SetKeepAlive(60 * time.Second)
+		opts.SetPingTimeout(1 * time.Second)
+
+		c := mqtt.NewClient(opts)
+		if token := c.Connect(); token.Wait() && token.Error() != nil {
+			panic(token.Error())
+		}
+		token := c.Publish(fmt.Sprintf("%s/applet", config.MQTT.Topic), 0, false, string(payload))
+		token.Wait()
+		c.Disconnect(250)
 		w.WriteHeader(http.StatusOK)
 	}
 
