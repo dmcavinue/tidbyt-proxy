@@ -14,6 +14,10 @@ rest_command:
     url: http://tidbyt:8080/api/notify
     payload: '{"text": "{{ text }}", "textcolor": "{{ textcolor }}", "bgcolor": "{{ bgcolor }}", "icon": "{{ icon }}"}'
     method: POST
+  tidbyt-image:
+    url: http://tidbyt:8080/api/image
+    payload: '{"image": "{{ text }}", "height": "{{ height }}", "width": "{{ width }}"}'
+    method: POST    
 ```
 
 #####  `Service` usage:
@@ -35,6 +39,8 @@ If you use postman and add the `returnimage: true` boolean parameter, it will re
 ```
 docker-compose up --build
 
-# curl example:
-curl -k http://localhost:8080/api/notify -d '{"text": "this is a test", "textcolor": "#000000", "bgcolor": "#ffffff", "icon": "parrot", "returnimage", true}'
+# curl examples:
+curl -k http://localhost:8080/api/notify -d '{"text": "this is a test", "textcolor": "#000000", "bgcolor": "#ffffff", "icon": "parrot"}'
+
+curl -k http://localhost:8080/api/image -d '{"image": "https://<some-image-url>", "width": 15, "height": 15}'
 ```

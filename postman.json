@@ -6,6 +6,35 @@
 	},
 	"item": [
 		{
+			"name": "image",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"image\": \"\",\r\n    \"return_image\": true\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8080/api/image",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"image"
+					]
+				}
+			},
+			"response": []
+		},
+		{
 			"name": "notify",
 			"request": {
 				"method": "POST",
@@ -19,7 +48,7 @@
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\r\n    \"text\": \"{{$randomCity}}\",\r\n    \"textcolor\": \"#ffffff\",\r\n    \"bgcolor\": \"#000000\",\r\n    \"returnimage\": true\r\n}",
+					"raw": "{\r\n    \"text\": \"{{$randomCity}}\",\r\n    \"icon\": \"parrot\",\r\n    \"return_image\": true\r\n}",
 					"options": {
 						"raw": {
 							"language": "json"
