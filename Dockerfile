@@ -1,11 +1,11 @@
-FROM golang:1.17-alpine3.16
+FROM golang:1.23-alpine
 WORKDIR /build
 COPY . .
 RUN GOOS=linux CGO_ENABLED=0 go build -a -ldflags '-s -w -extldflags "-static"' -o tidbyt .
 
-FROM node:18.8.0-slim
+FROM node:22.7.0-slim
 
-ENV PIXLET_VERSION 0.18.2
+ENV PIXLET_VERSION 0.33.3
 
 ENV USER_NAME tidbyt
 ENV USER_ID 1001
