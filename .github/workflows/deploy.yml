@@ -4,6 +4,15 @@ on:
   push:
     tags:
       - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'manual image tag'
+        required: true
+        default: ''
+
+env:
+  TAG: ${{ inputs.version || github.ref_name }}
 
 jobs:
   push:
@@ -37,6 +46,6 @@ jobs:
           docker build --tag $tmpName .
           IMAGE_ID=ghcr.io/${{ github.actor }}/tidbyt-proxy
 
-          docker tag $tmpName $IMAGE_ID:${{github.ref_name}}
-          docker push $IMAGE_ID:${{github.ref_name}}
+          docker tag $tmpName $IMAGE_ID:${{ env.TAG }}
+          docker push $IMAGE_ID:${{ env.TAG }}
       
